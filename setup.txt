@@ -1,0 +1,19 @@
+# Init Project
+- python -m venv .venv
+- source .venv/bin/activate
+
+# Init database
+- alembic init alembic
+- alembic revision "create chats table" [create a migration]
+- *SETUP alembic/env.py first to enable async migration
+- alembic upgrade head [up migrations]
+- alembic downgrade base [reverse migration]
+
+# Init Config [./config]
+- create .env
+- init env_file = '.env'
+- copy paste all the key of .env if not it wont detected on your app
+
+# Init App
+- create module
+  - model -> schemas -> repository -> dependency -> main

@@ -1,0 +1,31 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[scripts]
+dev = "uvicorn main:app --reload"
+celery = "celery -A main.celery worker --loglevel=info"
+flower = "celery -A main.celery flower --port=5555"
+
+[packages]
+fastapi = "*"
+uvicorn = {extras = ["standard"], version = "*"}
+databases = {extras = ["aiomysql"], version = "*"}
+sqlalchemy = {extras = ["asyncio"], version = "*"}
+python-socketio = "*"
+sqlmodel = "*"
+requests = "*"
+flower = "*"
+celery = {extras = ["redis", "sqlalchemy"], version = "*"}
+fastapi-pagination = "*"
+livestream-monitor-classifier = "*"
+python-dotenv = "*"
+pydantic = {extras = ["dotenv"], version = "*"}
+pytchat = "*"
+
+[dev-packages]
+alembic = "*"
+
+[requires]
+python_version = "3.10"
