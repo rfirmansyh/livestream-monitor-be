@@ -3,12 +3,14 @@ import time
 import app.modules.detection_tasks.schemas as sc
 from fastapi import Body, APIRouter, Depends
 from fastapi_pagination import Page, Params
+from fastapi.exceptions import HTTPException
 from celery.result import AsyncResult
 from celery import group
 from typing import List, Optional
 from pandas import DataFrame
 from livestream_monitor_classifier import Classifier
 from app.helpers import fetcher
+from app.utils.app_util import format_row_to_dict
 from app.utils.response_util import res_error
 from app.utils.celery_util import get_task_info
 from app.socket import socket_manager
@@ -43,6 +45,8 @@ async def start_detection(
   livestream_repository: LivestreamRepository = Depends(get_livestream_repository),
   detection_task_repository: DetectionTaskRepository = Depends(get_detection_task_repository),
 ): 
+  # livestream_a_url_id = 'EjQajAujllI'
+  # livestream_b_url_id = 'a4RxLxvgQ2c'
   livestream_a_url_id = schema.livestream_a_url_id
   livestream_b_url_id = schema.livestream_b_url_id
   
@@ -54,10 +58,8 @@ async def start_detection(
   livestream_a = await livestream_repository.get_by_livestream_url_id(livestream_a_url_id)
   livestream_b = await livestream_repository.get_by_livestream_url_id(livestream_b_url_id)
   
-  if (livestream_a and livestream_a.livestream_end_time) and (livestream_b and livestream_b.livestream_end_time):
-    return 'livestream-finished-all'
-  if (livestream_a and livestream_a.livestream_end_time) or (livestream_b and livestream_b.livestream_end_time):
-    return 'livestream-finished-some'
+  response_data = None
+  response_status = None
   
   if not livestream_a:
     livestream_a = await create_livestream_from_api(livestream_repository, channel_repository, livestream_a_url_id)
@@ -67,17 +69,29 @@ async def start_detection(
     livestream_b_should_start_new_task = True
     
   if livestream_a and livestream_b:
-    detection_task = await detection_task_repository.get_by_livestream_urls(livestream_a_url_id, livestream_b_url_id)
+    if livestream_a.livestream_end_time and livestream_b.livestream_end_time:
+      raise HTTPException(400, detail='All Livestream has Finished')
+      return
+      # return 'livestream-finished-all'
+    if livestream_a.livestream_end_time or livestream_b.livestream_end_time:
+      raise HTTPException(400, detail='Some Livestream has Finished')
+      return
+      # return 'livestream-finished-some'
     
-    if not detection_task:
-      schema = sc.DetectionTaskCreate(
-        livestream_a_id=livestream_a.id,
-        livestream_a_url_id=livestream_a_url_id,
-        livestream_b_id=livestream_b.id,
-        livestream_b_url_id=livestream_b_url_id,
-      )
-      await detection_task_repository.create(schema=schema)
+    schema = sc.DetectionTaskCreate(
+      livestream_a_id=livestream_a.id,
+      livestream_a_url_id=livestream_a_url_id,
+      livestream_b_id=livestream_b.id,
+      livestream_b_url_id=livestream_b_url_id,
+    )
     
+    if livestream_a_should_start_new_task or livestream_b_should_start_new_task:
+      response_data = await detection_task_repository.create(schema=schema)
+      response_status = 'livestream-new'
+    else:
+      response_data = await detection_task_repository.get_by_livestream_urls(livestream_a_url_id, livestream_b_url_id)
+      response_status = 'livestream-started'
+      
     if livestream_a_should_start_new_task:
       task_predicts_list.append(
         task_predicts.s(livestream_a.livestream_livechat_id, livestream_a.id, livestream_a_url_id).set(task_id=f"task_predicts-{livestream_a_url_id}"),
@@ -89,70 +103,54 @@ async def start_detection(
       
     if len(task_predicts_list) > 0:
       group(*task_predicts_list).apply_async()
-    return 'livestream-ok-detection'
+    
+    response_final = response_data.__dict__
+    response_final['status'] = response_status
+    return response_final
   
-  return 'livestream-can-not-be-detected'
+  raise HTTPException(400, detail='Something went wrong, Detection task cannot be executed')
 
 @router.post('/end_detection', response_model=DetectionTask)
 async def end_detection(
-  schema: sc.DetectionTaskApiParams,
+  schema: sc.DetectionTaskEndApiParams,
   repository: DetectionTaskRepository = Depends(get_detection_task_repository),
 ):
-  livestream_a_url_id = schema.livestream_a_url_id
-  livestream_b_url_id = schema.livestream_b_url_id
-  data = await repository.set_end_detection(livestream_a_url_id, livestream_b_url_id)
+  data = await repository.set_end_detection(id=schema.id)
   return data
 
-@router.get('/get_comparison_data')
-async def get_comparison_data(
-  livestream_a_url_id: str,
-  livestream_b_url_id: str,
+@router.get('/get_all_comparison')
+async def get_all_comparison(
   detection_task_repository: DetectionTaskRepository = Depends(get_detection_task_repository),
 ):
-  data = await detection_task_repository.get_comparison_data(
-    livestream_a_url_id, 
-    livestream_b_url_id
-  )
+  data = await detection_task_repository.get_all_comparison()
   return data
 
-@router.get('/test-detection')
-async def test_detection(
+@router.get('/get_comparison_detail')
+async def get_comparison_detail(
+  id: str,
+  detection_task_repository: DetectionTaskRepository = Depends(get_detection_task_repository),
+):
+  data = await detection_task_repository.get_comparison_detail(id)
+  return data
+
+@router.get('/get_chats_detected')
+async def get_comparison_detail(
+  id: str,
+  detection_task_repository: DetectionTaskRepository = Depends(get_detection_task_repository),
   chat_repository: ChatRepsository = Depends(get_chat_repository),
-  detection_task_repository: DetectionTaskRepository = Depends(get_detection_task_repository),
-  livestream_repository: LivestreamRepository = Depends(get_livestream_repository),
 ):
-  # test here put active_live_chat_id
-  mnb_classifier_start_ts = time.time()
+  detection_task = await detection_task_repository.get(id)
+  res = []
   
-  fetch = fetcher.get_livechat("Cg0KC3pJRnJ4MGlPclcwKicKGFVDQ2U2NE1WQWJ2czdVeTFTS0h0WG5aURILeklGcngwaU9yVzA")
-  if fetch.status_code == 200 and fetch.json()['items']:
-    livechats = fetch.json()['items']
-    chats_formatted = map(lambda livechat: ChatYtData(livechat, livestream_id=1).__dict__, livechats)
+  if detection_task:
+    detection_task = format_row_to_dict(detection_task)
+    chats_detected_a = await chat_repository.get_chats_by_livestream_id(livestream_id=detection_task['livestream_a_id'], predicted_as='HS')
+    chats_detected_b = await chat_repository.get_chats_by_livestream_id(livestream_id=detection_task['livestream_b_id'], predicted_as='HS')
     
-    df = DataFrame(chats_formatted)
-    df['predicted_as'] = classifier.predict_list(df['display_message'].tolist())
-    chats_dict = df.to_dict('records')
+    res = {
+      'chats_detected_a': chats_detected_a,
+      'chats_detected_b': chats_detected_b,
+    }
     
-    created = await chat_repository.bulk(chats_dict)
-    data = await chat_repository.get_limit_and_count_by_livestream_id(
-      limit=created.rowcount, 
-      livestream_id=1
-    )
-  else:
-    return None
-    
-  mnb_classifier_end_ts = time.time()
-  print(f"Prediction of mnb_classifier Time [s]: {(mnb_classifier_end_ts-mnb_classifier_start_ts):.5f}")
-  
-  print('fetch result', fetch.json())
-  
-  return {
-    "info": 'test-detection'
-  }
+  return res
 
-@router.post('/test_set_end', response_model=List[DetectionTask])
-async def test_set_end(
-  repository: DetectionTaskRepository = Depends(get_detection_task_repository),
-):
-  data = await repository.set_end_by_related_livestream_url_id('jfKfPfyJRdk')
-  return data

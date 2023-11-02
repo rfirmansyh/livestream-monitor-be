@@ -5,7 +5,7 @@ from .model import DetectionTaskBase
 
 
 class DetectionTaskRead(DetectionTaskBase):
-  id: Optional[int]
+  id: Optional[str]
 
 
 class DetectionTaskWithLivestreamRead(DetectionTaskRead):
@@ -20,4 +20,7 @@ class DetectionTaskCreate(DetectionTaskBase):
 class DetectionTaskApiParams(BaseModel):
   livestream_a_url_id: str
   livestream_b_url_id: str
+  
+class DetectionTaskEndApiParams(BaseModel):
+  id: str
   

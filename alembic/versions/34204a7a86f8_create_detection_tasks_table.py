@@ -1,8 +1,8 @@
 """create detection_tasks table
 
-Revision ID: 5ab59a8dfef5
-Revises: 3101f023499f
-Create Date: 2023-05-28 18:52:59.138754
+Revision ID: 34204a7a86f8
+Revises: 4d5b66371ac9
+Create Date: 2023-07-18 01:53:36.700113
 
 """
 from alembic import op
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '5ab59a8dfef5'
-down_revision = '3101f023499f'
+revision = '34204a7a86f8'
+down_revision = '4d5b66371ac9'
 branch_labels = None
 depends_on = None
 
@@ -19,7 +19,7 @@ depends_on = None
 def upgrade() -> None:
   op.create_table(
     'detection_tasks',
-    sa.Column('id', sa.Integer, primary_key=True, autoincrement=True),
+    sa.Column('id', sa.String(255), primary_key=True),
     # task_id from celery
     sa.Column('livestream_a_id', sa.Integer),
     sa.Column('livestream_a_url_id', sa.String(255)),

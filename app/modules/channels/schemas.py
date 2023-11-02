@@ -3,4 +3,4 @@ from .model import ChannelBase
 
 
 class ChannelRead(ChannelBase):
-  id: Optional[int]
+  id: Optional[str]

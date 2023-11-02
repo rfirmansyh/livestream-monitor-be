@@ -58,41 +58,45 @@ async def task_predicts(
     started_time_detection = time.time()
     started_time_tolerance = time.time()
     stop_time_tolerance_seconds = 10
-    stop_time_detection_seconds = 60
-    task_livestream_check.apply_async(args=[livestream_url_id], task_id=f"task_livestream_check-{livestream_url_id}")
+    stop_time_detection_seconds = 3600 # force stop detection 
+    
     chat = pytchat.create(video_id=livestream_url_id)
     async with async_session() as session:
       chat_repository = ChatRepsository(session=session)
       detection_task_repository = DetectionTaskRepository(session=session)
       livestream_repository = LivestreamRepository(session=session)
       
+      async def handle_end(message='aborted'):
+        await socket_manager.emit(
+          f'livestream-ended', 
+          'ended-expired',
+          room=livestream_url_id
+        )
+        try:
+          await detection_task_repository.set_end_by_related_livestream_url_id(livestream_url_id)
+          await livestream_repository.update_livestream_end_time(livestream_url_id)
+          return message
+        except Exception as ex:
+          return 'aborted-with-failed-flow' # not saved end time
+      
       while chat.is_alive():
         total_time_tolerance_seconds = time.time() - started_time_tolerance
         total_time_detection_seconds = time.time() - started_time_detection
+        
         start_t = time.time()
         chats = json.loads(chat.get().json()) 
         
-        # if total_time_detection_seconds > stop_time_detection_seconds:
-        #   return f'aborted_maxium_detection_time'
-        # if total_time_tolerance_seconds > stop_time_tolerance_seconds and len(chats) > 0:
-        #   return f'aborted_no_response_from_livechat_after_{stop_time_tolerance_seconds}s'
+        if total_time_detection_seconds > stop_time_detection_seconds:
+          return await handle_end(f'aborted_maxium_detection_time')
+          break
+        if total_time_tolerance_seconds > stop_time_tolerance_seconds and len(chats) < 1:
+          return await handle_end(f'aborted_no_response_from_livechat_after_{stop_time_tolerance_seconds}s')
+          break
         
-        if self.is_aborted():
-          await socket_manager.emit(
-            f'livestream-ended', 
-            'ended-expired',
-            room=livestream_url_id
-          )
-          try:
-            await detection_task_repository.set_end_by_related_livestream_url_id(livestream_url_id)
-            await livestream_repository.update_livestream_end_time(livestream_url_id)
-            return 'aborted-success-flow'
-            break
-          except Exception as ex:
-            return 'aborted-failed-flow'
-            break
+        print('len(chats)', len(chats))
+        
         if len(chats) > 0:
-          started_time_tolerance = time.time()
+          started_time_tolerance = time.time() # reset start time if chats not 0
           process_chats_result = process_livechats(chats, livestream_id=livestream_id)
           if process_chats_result == 'error':
             break

@@ -1,8 +1,8 @@
 """create chats table
 
-Revision ID: 3101f023499f
-Revises: 1731f48422cd
-Create Date: 2023-05-28 18:52:29.210469
+Revision ID: 4d5b66371ac9
+Revises: e63105625244
+Create Date: 2023-07-18 01:53:29.767458
 
 """
 from alembic import op
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '3101f023499f'
-down_revision = '1731f48422cd'
+revision = '4d5b66371ac9'
+down_revision = 'e63105625244'
 branch_labels = None
 depends_on = None
 

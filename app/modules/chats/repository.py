@@ -44,6 +44,19 @@ class ChatRepsository:
     }
     return jsonable_encoder(results)
 
+  async def get_chats_by_livestream_id(self, livestream_id, predicted_as):
+    query = text(f"""
+      SELECT ca.*
+      FROM `chats` AS ca
+      JOIN `livestreams` AS ls ON ls.id = ca.livestream_id
+      WHERE ls.id = '{livestream_id}' AND ca.predicted_as = '{predicted_as}'
+    """)
+    
+    res = await self.session.execute(query)
+    res = res.all()
+    
+    return res
+
   async def create_from_api(self, yt_api_data, **kwargs):
     chatYtData = ChatYtData(yt_api_data, **kwargs)
     chat = Chat(**chatYtData.__dict__)

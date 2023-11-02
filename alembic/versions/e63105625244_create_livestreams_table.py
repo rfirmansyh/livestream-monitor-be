@@ -1,8 +1,8 @@
 """create livestreams table
 
-Revision ID: 1731f48422cd
-Revises: 
-Create Date: 2023-05-28 18:52:25.646634
+Revision ID: e63105625244
+Revises: 13b2036a6831
+Create Date: 2023-07-18 01:53:24.007558
 
 """
 from alembic import op
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '1731f48422cd'
-down_revision = None
+revision = 'e63105625244'
+down_revision = '13b2036a6831'
 branch_labels = None
 depends_on = None
 
@@ -32,8 +32,11 @@ def upgrade() -> None:
     sa.Column('livestream_max_viewers', sa.Integer, nullable=True),
     sa.Column('created_at', sa.DateTime, default=sa.func.now()),
     sa.Column('updated_at', sa.DateTime, onupdate=sa.func.now(), default=sa.func.now()),
+    
+    sa.ForeignKeyConstraint(['channel_id'], ['channels.id'], 'fk_livestreams_channels')
   )
 
 
 def downgrade() -> None:
+  op.drop_constraint('fk_livestreams_channels', 'livestreams', type_='foreignkey')
   op.drop_table('livestreams')
