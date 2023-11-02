@@ -32,12 +32,6 @@ router = APIRouter(prefix='/detection_tasks', tags=['Detection Task'])
 classifier = Classifier()
 
 
-@router.get('/info')
-async def info():
-  return {
-    "path": '/detection_tasks'
-  }
-  
 @router.post('/start_detection')
 async def start_detection(
   schema: sc.DetectionTaskApiParams,
@@ -45,8 +39,6 @@ async def start_detection(
   livestream_repository: LivestreamRepository = Depends(get_livestream_repository),
   detection_task_repository: DetectionTaskRepository = Depends(get_detection_task_repository),
 ): 
-  # livestream_a_url_id = 'EjQajAujllI'
-  # livestream_b_url_id = 'a4RxLxvgQ2c'
   livestream_a_url_id = schema.livestream_a_url_id
   livestream_b_url_id = schema.livestream_b_url_id
   
@@ -72,11 +64,9 @@ async def start_detection(
     if livestream_a.livestream_end_time and livestream_b.livestream_end_time:
       raise HTTPException(400, detail='All Livestream has Finished')
       return
-      # return 'livestream-finished-all'
     if livestream_a.livestream_end_time or livestream_b.livestream_end_time:
       raise HTTPException(400, detail='Some Livestream has Finished')
       return
-      # return 'livestream-finished-some'
     
     schema = sc.DetectionTaskCreate(
       livestream_a_id=livestream_a.id,
@@ -134,7 +124,7 @@ async def get_comparison_detail(
   return data
 
 @router.get('/get_chats_detected')
-async def get_comparison_detail(
+async def get_chats_detected(
   id: str,
   detection_task_repository: DetectionTaskRepository = Depends(get_detection_task_repository),
   chat_repository: ChatRepsository = Depends(get_chat_repository),

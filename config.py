@@ -28,4 +28,3 @@ def get_config():
 get_config.cache_clear()
 
 base_config = get_config()
-# print(base_config)

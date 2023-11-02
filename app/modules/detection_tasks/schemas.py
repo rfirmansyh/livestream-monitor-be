@@ -8,11 +8,6 @@ class DetectionTaskRead(DetectionTaskBase):
   id: Optional[str]
 
 
-class DetectionTaskWithLivestreamRead(DetectionTaskRead):
-  livestream_a: Livestream = None
-  livestream_b: Livestream = None
-
-
 class DetectionTaskCreate(DetectionTaskBase):
   pass
 

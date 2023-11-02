@@ -9,6 +9,7 @@ from app.modules.livestreams.repository import LivestreamRepository
 from app.modules.chats.model import ChatYtData, ChatPytchatData
 from app.modules.chats.repository import ChatRepsository
 
+
 classifier = Classifier()
 
 def update_status(self):
@@ -19,6 +20,21 @@ def update_status(self):
       'exc_message': 'Livechat Session End',
     }
   )
+
+def process_livechats(
+  chats,
+  livestream_id
+):
+  try:
+    chats_formatted = map(lambda chat: ChatPytchatData(chat, livestream_id=livestream_id).__dict__, chats)
+    df = DataFrame(chats_formatted)
+    df['predicted_as'] = classifier.predict_list(df['display_message'].tolist())
+    df_dict = df.to_dict('records')
+    
+    return df_dict
+  except Exception as ex:
+    print('Exception in process_livechats', ex)
+    return 'error'
 
 async def create_livestream_from_api(livestream_repository, channel_repository, livestream_url_id, tes_null = False):
   fetch_livestream = fetcher.get_livestream(livestream_url_id)
@@ -81,18 +97,3 @@ async def predict_livechats(
     print('Exception in predict_livechats', ex)
     yield None
   
-def process_livechats(
-  chats,
-  livestream_id
-):
-  try:
-    chats_formatted = map(lambda chat: ChatPytchatData(chat, livestream_id=livestream_id).__dict__, chats)
-    df = DataFrame(chats_formatted)
-    df['predicted_as'] = classifier.predict_list(df['display_message'].tolist())
-    df_dict = df.to_dict('records')
-    
-    return df_dict
-  except Exception as ex:
-    print(json.loads(chats))
-    print('Exception in process_livechats', ex)
-    return 'error'

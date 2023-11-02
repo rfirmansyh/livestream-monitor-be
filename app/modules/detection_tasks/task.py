@@ -15,36 +15,6 @@ from app.modules.livestreams.repository import LivestreamRepository
 from app.modules.livestreams.model import LivestreamYtData
 from .helper import predict_livechats, update_status, process_livechats
 
-# THIS TASK USED TO DETECT LIVESTREAM STILL ACTIVE OR NOT AND UPDATE IT TO DATABASE
-@shared_task(bind=True, name="task_livestream_check", base=AbortableTask)
-@sync_task
-async def task_livestream_check(
-  self,
-  livestream_url_id,
-): 
-  # SHOULD CHECK EVERY 1 HOUR
-  # while True:
-  #   try:
-  #     fetch_livestream = fetcher.get_livestream(livestream_url_id)
-  #     if fetch_livestream.status_code == 200 and fetch_livestream.json()['items']:
-  #       yt_livestream_data = fetch_livestream.json()['items'][0]
-  #       livestreamYtData = LivestreamYtData(yt_livestream_data, livestream_url_id = livestream_url_id)
-  #       if livestreamYtData.livestream_end_time:
-  #         raise Exception('livestream_ended')
-  #     else:
-  #       raise Exception('livestream_ended')
-  #   except Exception as ex:
-  #     revoke(f"task_predicts-{livestream_url_id}").abort()
-  #     revoke(f"livestream_url_id-{livestream_url_id}").abort()
-  #   time.sleep(10)
-  
-  # DEMO DUMMY AUTO DISABLE task_predicts ON 1 MINUTE
-  time.sleep(60)
-  print('ABORT TASK PREDICST')
-  task_predicts.AsyncResult(f"task_predicts-LpJ_7ne_4vk").abort()
-  # task_predicts.AsyncResult(f"task_predicts-{livestream_url_id}").abort()
-  # control.revoke(f"task_predicts-{livestream_url_id}").abort()
-  # control.revoke(f"task_livestream_check-{livestream_url_id}").abort()
     
 @shared_task(bind=True, name="task_predicts", base=AbortableTask)
 @sync_task
@@ -92,8 +62,6 @@ async def task_predicts(
         if total_time_tolerance_seconds > stop_time_tolerance_seconds and len(chats) < 1:
           return await handle_end(f'aborted_no_response_from_livechat_after_{stop_time_tolerance_seconds}s')
           break
-        
-        print('len(chats)', len(chats))
         
         if len(chats) > 0:
           started_time_tolerance = time.time() # reset start time if chats not 0

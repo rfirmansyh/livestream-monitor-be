@@ -15,7 +15,6 @@ class DetectionTaskBase(SQLModel):
   created_at: Optional[datetime]
   ended_at: Optional[datetime]
   
-  
 class DetectionTask(DetectionTaskBase, table=True):
   __tablename__ = 'detection_tasks'
 
