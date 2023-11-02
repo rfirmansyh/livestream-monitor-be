@@ -1,5 +1,4 @@
 import requests
-import app.modules.channels.schemas as sc
 from typing import List
 from fastapi import APIRouter, Depends
 from app.helpers import fetcher

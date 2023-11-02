@@ -57,16 +57,6 @@ class ChatRepsository:
     
     return res
 
-  async def create_from_api(self, yt_api_data, **kwargs):
-    chatYtData = ChatYtData(yt_api_data, **kwargs)
-    chat = Chat(**chatYtData.__dict__)
-    
-    self.session.add(chat)
-    await self.session.commit()
-    await self.session.refresh(chat)
-    
-    return chat
-
   async def bulk(self, schemas: List[dict]):
     chats: List[dict] = schemas
 
