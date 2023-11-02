@@ -12,23 +12,10 @@ class LivestreamRepository:
   def __init__(self, session: AsyncSession):
     self.session = session
 
-  async def all(self):
-    query = select(Livestream)
-    res = await self.session.execute(query)
-    return res.scalars().all()
-
   async def get_by_livestream_url_id(self, livestream_url_id: str) -> Optional[sc.LivestreamRead]:
     q = select(Livestream).where(Livestream.livestream_url_id == livestream_url_id).limit(1)
     res = await self.session.execute(q)
     return res.scalar_one_or_none()
-
-  async def create(self, schema: sc.LivestreamCreate):
-    livestream = Livestream(**schema.dict())
-    self.session.add(livestream)
-    await self.session.commit()
-    await self.session.refresh(livestream)
-
-    return livestream
   
   async def create_from_api(self, yt_data, **kwargs):
     livestreamYtData = LivestreamYtData(yt_data, **kwargs)
@@ -39,21 +26,6 @@ class LivestreamRepository:
     await self.session.refresh(livestream)
 
     return livestream
-
-  async def update(self, schema_current: Livestream, schema_new: sc.LivestreamUpdate):
-    livestream_current = jsonable_encoder(schema_current)
-
-    livestream_update = schema_new.dict(exclude_unset=True) 
-
-    for field in livestream_current:
-      if field in livestream_update:
-        setattr(schema_current, field, livestream_update[field])
-
-    self.session.add(schema_current)
-    await self.session.commit()
-    await self.session.refresh(schema_current)
-
-    return schema_current
   
   async def update_livestream_end_time(self, livestream_url_id, end_time = None):
     livestream_current = await self.get_by_livestream_url_id(livestream_url_id)
