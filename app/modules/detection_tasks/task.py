@@ -56,12 +56,12 @@ async def task_predicts(
         start_t = time.time()
         chats = json.loads(chat.get().json()) 
         
-        if total_time_detection_seconds > stop_time_detection_seconds:
-          return await handle_end(f'aborted_maxium_detection_time')
-          break
-        if total_time_tolerance_seconds > stop_time_tolerance_seconds and len(chats) < 1:
-          return await handle_end(f'aborted_no_response_from_livechat_after_{stop_time_tolerance_seconds}s')
-          break
+        # if total_time_detection_seconds > stop_time_detection_seconds:
+        #   return await handle_end(f'aborted_maxium_detection_time')
+        #   break
+        # if total_time_tolerance_seconds > stop_time_tolerance_seconds and len(chats) < 1:
+        #   return await handle_end(f'aborted_no_response_from_livechat_after_{stop_time_tolerance_seconds}s')
+        #   break
         
         if len(chats) > 0:
           started_time_tolerance = time.time() # reset start time if chats not 0

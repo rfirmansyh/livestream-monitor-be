@@ -16,6 +16,14 @@ class DetectionTaskRepository:
     res = await self.session.execute(q)
     return res.scalar()
   
+  async def create(self, schema: sc.DetectionTaskCreate):
+    detection_task = DetectionTask(**schema.dict())
+    self.session.add(detection_task)
+    await self.session.commit()
+    await self.session.refresh(detection_task)
+
+    return detection_task
+  
   async def get_by_livestream_urls(self, livestream_a_url_id, livestream_b_url_id):
     q = (
       select(DetectionTask)

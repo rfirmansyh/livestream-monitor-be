@@ -6,7 +6,7 @@ from .depedencies import get_repository
 from .repository import ChannelRepository
 
 
-router = APIRouter(prefix='/channels', tags=['Channels'])
+router = APIRouter()
 
 
 @router.get('/get_with_summary')

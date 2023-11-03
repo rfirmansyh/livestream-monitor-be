@@ -11,7 +11,6 @@ from pandas import DataFrame
 from livestream_monitor_classifier import Classifier
 from app.helpers import fetcher
 from app.utils.app_util import format_row_to_dict
-from app.utils.response_util import res_error
 from app.utils.celery_util import get_task_info
 from app.socket import socket_manager
 from app.modules.channels.repository import ChannelRepository
@@ -28,7 +27,7 @@ from .task import task_predicts
 from .model import DetectionTask
 
 
-router = APIRouter(prefix='/detection_tasks', tags=['Detection Task'])
+router = APIRouter()
 classifier = Classifier()
 
 

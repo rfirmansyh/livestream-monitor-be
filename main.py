@@ -31,18 +31,3 @@ celery = app.celery_app
 # SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
 
 
-# TODO
-# - it's ok keep going detection [done]
-# - improve query by created_at [done]
-# - set end by url id with OR [done]
-# - set end by url id with AND [done]
-# - show livestream data and thumbnail [done]
-# - detection task readable ID [done]
-# - set end detection by id [done]
-# - get comparison data by detection readable id instead of 2 youtube urls [done]
-# - keep add wherecase [done]
-# - finalize result fe [wip]
-# - finish explore page [wip]
-# - finalize auto end stream behaviour BE [wip]
-# - dockerize backend, redis, sql [wip]
-# - make unit test [start after FE done]
