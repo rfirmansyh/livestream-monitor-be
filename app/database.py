@@ -9,8 +9,6 @@ T = TypeVar("T", bound=SQLModel)
 
 async_engine = create_async_engine(
   base_config.DATABASE_URL,
-  echo=True,
-  future=True
 )
 
 async_session = sessionmaker(

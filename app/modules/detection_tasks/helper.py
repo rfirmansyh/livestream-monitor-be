@@ -56,44 +56,4 @@ async def create_livestream_from_api(livestream_repository, channel_repository, 
       
   return livestream   
 
-async def predict_livechats(
-  active_live_chat_id, 
-  livestream_id, 
-  livestream_url_id,
-  livestream_celery_task_id
-):
-  try:
-    fetch = fetcher.get_livechat(active_live_chat_id)
-    print('fetch.json', fetch.json())
-    if fetch.status_code == 200:
-      async with async_session() as session:
-        chat_repository = ChatRepsository(session=session)
-        livestream_repository = LivestreamRepository(session=session)
-        
-        livechats = fetch.json()['items']
-        chats_formatted = map(lambda livechat: ChatYtData(livechat, livestream_id=1).__dict__, livechats)
-        
-        df = DataFrame(chats_formatted)
-        df['predicted_as'] = classifier.predict_list(df['display_message'].tolist())
-        df_dict = df.to_dict('records')
-        
-        await socket_manager.emit(
-          f'get_livechat_data_predicted-{livestream_url_id}', 
-          jsonable_encoder(df_dict),
-          room=livestream_url_id
-        )
-        
-        # created = await chat_repository.bulk(chats_dict)
-        # data = await chat_repository.get_limit_and_count_by_livestream_id(
-        #   limit=created.rowcount, 
-        #   livestream_id=livestream_id
-        # )
-        
-        await session.close()
-        yield 'success'
-    else:
-      raise Exception('Get livechat error')
-  except Exception as ex:
-    print('Exception in predict_livechats', ex)
-    yield None
   

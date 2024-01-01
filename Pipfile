@@ -5,7 +5,7 @@ name = "pypi"
 
 [scripts]
 dev = "uvicorn main:app --reload"
-celery = "celery -A main.celery worker --loglevel=info"
+celery = "celery -A main.celery worker --loglevel=WARNING"
 flower = "celery -A main.celery flower --port=5555"
 
 [packages]
