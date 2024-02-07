@@ -26,6 +26,7 @@ def process_livechats(
   try:
     chats_formatted = map(lambda chat: ChatPytchatData(chat, livestream_id=livestream_id).__dict__, chats)
     df = DataFrame(chats_formatted)
+    print('chats_formatted', chats_formatted)
     df['predicted_as'] = classifier.predict_list(df['display_message'].tolist())
     df_dict = df.to_dict('records')
     
@@ -34,14 +35,4 @@ def process_livechats(
     print('Exception in process_livechats', ex)
     return 'error'
   
-livestream_id = "iyZsFr9XZH0"
-livestream_chat = pytchat.create(video_id=livestream_id)
-while livestream_chat.is_alive():
-  chats = json.loads(livestream_chat.get().json())
-  if len(chats) > 0:
-    chats_len_3 = [chats[0], chats[1], chats[2]]
-    process_chats_result = process_livechats(chats_len_3, livestream_id=livestream_id)
-    pprint.pprint(process_chats_result)
-    livestream_chat.terminate()
-    break  
-  break
+  

@@ -4,12 +4,18 @@ from config import base_config
 
 socket_manager = SocketManager(origins=base_config.BASE_ORIGINS)
 
+
+def format_emit_detection(type = 'info', message = ''):
+  return {
+    'type': type,
+    'message': message
+  }
 def handle_connect(sid, environ):
   print(f'Socket connected with sid {sid}')
 def handle_join(sid, room_id):
   print(f'joined room {room_id}')
   socket_manager.server.enter_room(sid, room_id)
-
+  
 def add_socket(app):
   socket_manager.on('connect', handler=handle_connect)
   socket_manager.on('join_detection_room', handler=handle_join)

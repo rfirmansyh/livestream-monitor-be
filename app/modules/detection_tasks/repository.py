@@ -24,15 +24,10 @@ class DetectionTaskRepository:
 
     return detection_task
   
-  async def get_by_livestream_urls(self, livestream_a_url_id, livestream_b_url_id):
+  async def get_by_livestream_url(self, livestream_url_id):
     q = (
       select(DetectionTask)
-      .where(
-        or_(
-          and_(literal_column('livestream_a_url_id') == livestream_a_url_id, literal_column('livestream_b_url_id') == livestream_b_url_id),
-          and_(literal_column('livestream_b_url_id') == livestream_a_url_id, literal_column('livestream_a_url_id') == livestream_b_url_id),
-        )
-      )
+      .where(literal_column('livestream_url_id') == livestream_url_id)
     )
     res = await self.session.execute(q)
     return res.scalar()
@@ -49,33 +44,19 @@ class DetectionTaskRepository:
     query = text(f"""
       SELECT 
         dt.id AS id,
-        la.title AS livestream_a_title,
-        lb.title AS livestream_b_title,
-        lb.description AS livestream_b_description,
-        la.description AS livestream_a_description,
-        lb.thumbnails AS livestream_b_thumbnails,
-        la.thumbnails AS livestream_a_thumbnails,
-        la.livestream_url_id AS livestream_a_livestream_url_id,
-        lb.livestream_url_id AS livestream_b_livestream_url_id,
-        la.livestream_max_viewers AS livestream_a_livestream_max_viewers,
-        lb.livestream_max_viewers AS livestream_b_livestream_max_viewers,
-        ca.title AS livestream_a_channel_title,
-        cb.title AS livestream_b_channel_title,
-        ca.thumbnails AS livestream_a_channel_thumbnails,
-        cb.thumbnails AS livestream_b_channel_thumbnails,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.livestream_id = dt.livestream_a_id AND {where_case('dt.ended_at')}) as livestream_a_chats_total,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.livestream_id = dt.livestream_b_id AND {where_case('dt.ended_at')}) as livestream_b_chats_total,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'HS' AND c.livestream_id = dt.livestream_a_id AND {where_case('dt.ended_at')}) as livestream_a_chats_total_hs,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'HS' AND c.livestream_id = dt.livestream_b_id AND {where_case('dt.ended_at')}) as livestream_b_chats_total_hs,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'NHS' AND c.livestream_id = dt.livestream_a_id AND {where_case('dt.ended_at')}) as livestream_a_chats_total_nhs,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'NHS' AND c.livestream_id = dt.livestream_b_id AND {where_case('dt.ended_at')}) as livestream_b_chats_total_nhs,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'HS' AND (c.livestream_id = dt.livestream_a_id OR c.livestream_id = dt.livestream_b_id) AND {where_case('dt.ended_at')}) as current_detection_chats_total_hs,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'NHS' AND (c.livestream_id = dt.livestream_a_id OR c.livestream_id = dt.livestream_b_id) AND {where_case('dt.ended_at')}) as current_detection_chats_total_nhs
+        ls.title AS livestream_title,
+        ls.description AS livestream_description,
+        ls.thumbnails AS livestream_thumbnails,
+        ls.livestream_url_id AS livestream_livestream_url_id,
+        ls.livestream_max_viewers AS livestream_livestream_max_viewers,
+        ca.title AS livestream_channel_title,
+        ca.thumbnails AS livestream_channel_thumbnails,
+        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.livestream_id = dt.livestream_id AND {where_case('dt.ended_at')}) as livestream_chats_total,
+        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'HS' AND c.livestream_id = dt.livestream_id AND {where_case('dt.ended_at')}) as livestream_chats_total_hs,
+        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'NHS' AND c.livestream_id = dt.livestream_id AND {where_case('dt.ended_at')}) as livestream_chats_total_nhs
       FROM `detection_tasks` AS dt
-      JOIN `livestreams` AS la ON la.id = dt.livestream_a_id
-      JOIN `livestreams` AS lb ON lb.id = dt.livestream_b_id
-      JOIN `channels` AS ca ON ca.id = la.channel_id
-      JOIN `channels` AS cb ON cb.id = lb.channel_id
+      JOIN `livestreams` AS ls ON ls.id = dt.livestream_id
+      JOIN `channels` AS ca ON ca.id = ls.channel_id
       GROUP BY dt.id
     """)
      
@@ -94,33 +75,19 @@ class DetectionTaskRepository:
     query = text(f"""
       SELECT 
         dt.id AS id,
-        la.title AS livestream_a_title,
-        lb.title AS livestream_b_title,
-        lb.description AS livestream_b_description,
-        la.description AS livestream_a_description,
-        lb.thumbnails AS livestream_b_thumbnails,
-        la.thumbnails AS livestream_a_thumbnails,
-        la.livestream_url_id AS livestream_a_livestream_url_id,
-        lb.livestream_url_id AS livestream_b_livestream_url_id,
-        la.livestream_max_viewers AS livestream_a_livestream_max_viewers,
-        lb.livestream_max_viewers AS livestream_b_livestream_max_viewers,
-        ca.title AS livestream_a_channel_title,
-        cb.title AS livestream_b_channel_title,
-        ca.thumbnails AS livestream_a_channel_thumbnails,
-        cb.thumbnails AS livestream_b_channel_thumbnails,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.livestream_id = dt.livestream_a_id AND {where_case('dt.ended_at')}) as livestream_a_chats_total,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.livestream_id = dt.livestream_b_id AND {where_case('dt.ended_at')}) as livestream_b_chats_total,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'HS' AND c.livestream_id = dt.livestream_a_id AND {where_case('dt.ended_at')}) as livestream_a_chats_total_hs,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'HS' AND c.livestream_id = dt.livestream_b_id AND {where_case('dt.ended_at')}) as livestream_b_chats_total_hs,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'NHS' AND c.livestream_id = dt.livestream_a_id AND {where_case('dt.ended_at')}) as livestream_a_chats_total_nhs,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'NHS' AND c.livestream_id = dt.livestream_b_id AND {where_case('dt.ended_at')}) as livestream_b_chats_total_nhs,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'HS' AND (c.livestream_id = dt.livestream_a_id OR c.livestream_id = dt.livestream_b_id) AND {where_case('dt.ended_at')}) as current_detection_chats_total_hs,
-        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'NHS' AND (c.livestream_id = dt.livestream_a_id OR c.livestream_id = dt.livestream_b_id) AND {where_case('dt.ended_at')}) as current_detection_chats_total_nhs
+        ls.title AS livestream_title,
+        ls.description AS livestream_description,
+        ls.thumbnails AS livestream_thumbnails,
+        ls.livestream_url_id AS livestream_livestream_url_id,
+        ls.livestream_max_viewers AS livestream_livestream_max_viewers,
+        ca.title AS livestream_channel_title,
+        ca.thumbnails AS livestream_channel_thumbnails,
+        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.livestream_id = dt.livestream_id AND {where_case('dt.ended_at')}) as livestream_chats_total,
+        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'HS' AND c.livestream_id = dt.livestream_id AND {where_case('dt.ended_at')}) as livestream_chats_total_hs,
+        (SELECT COUNT(c.livechat_id) FROM `chats` AS c WHERE c.predicted_as = 'NHS' AND c.livestream_id = dt.livestream_id AND {where_case('dt.ended_at')}) as livestream_chats_total_nhs
       FROM `detection_tasks` AS dt
-      JOIN `livestreams` AS la ON la.id = dt.livestream_a_id
-      JOIN `livestreams` AS lb ON lb.id = dt.livestream_b_id
-      JOIN `channels` AS ca ON ca.id = la.channel_id
-      JOIN `channels` AS cb ON cb.id = lb.channel_id
+      JOIN `livestreams` AS ls ON ls.id = dt.livestream_id
+      JOIN `channels` AS ca ON ca.id = ls.channel_id
       WHERE dt.id = '{id}'
       GROUP BY dt.id
     """)
@@ -130,8 +97,7 @@ class DetectionTaskRepository:
   
   async def set_end_by_related_livestream_url_id(self, livestream_url_id):
     select_operator = or_(
-      DetectionTask.livestream_a_url_id == livestream_url_id,
-      DetectionTask.livestream_b_url_id == livestream_url_id
+      DetectionTask.livestream_url_id == livestream_url_id,
     ) 
     q = (
       update(DetectionTask)

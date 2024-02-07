@@ -8,7 +8,7 @@ from .repository import ChatRepsository
 from .model import Chat, ChatYtData
 
 
-router = APIRouter(prefix='/chats', tags=['Chats'])
+router = APIRouter()
 
 
 @router.get('/info')
@@ -17,6 +17,20 @@ async def info():
     "path": '/chats'
   }
 
+@router.get('/get_users_chat_detected')
+async def get_users_chat_detected(
+  repository: ChatRepsository = Depends(get_repository)
+):
+  res = await repository.get_users_chat_detected()
+  return res
+
+@router.get('/get_chats_detected_by_channel_id')
+async def get_chats_detected_by_channel_id(
+  channel_id: str,
+  repository: ChatRepsository = Depends(get_repository)
+):
+  res = await repository.get_chats_detected_by_channel_id(channel_id)
+  return res
 
 @router.post('/bulk_dummy')
 async def bulk_dummy(

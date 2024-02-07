@@ -13,8 +13,7 @@ class DetectionTaskCreate(DetectionTaskBase):
 
 
 class DetectionTaskApiParams(BaseModel):
-  livestream_a_url_id: str
-  livestream_b_url_id: str
+  livestream_url_id: str
   
 class DetectionTaskEndApiParams(BaseModel):
   id: str

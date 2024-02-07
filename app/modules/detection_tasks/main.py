@@ -10,7 +10,7 @@ from typing import List, Optional
 from pandas import DataFrame
 from livestream_monitor_classifier import Classifier
 from app.helpers import fetcher
-from app.utils.app_util import format_row_to_dict
+from app.utils.app_util import format_row_to_dict, CustomException
 from app.utils.celery_util import get_task_info
 from app.socket import socket_manager
 from app.modules.channels.repository import ChannelRepository
@@ -38,66 +38,53 @@ async def start_detection(
   livestream_repository: LivestreamRepository = Depends(get_livestream_repository),
   detection_task_repository: DetectionTaskRepository = Depends(get_detection_task_repository),
 ): 
-  livestream_a_url_id = schema.livestream_a_url_id
-  livestream_b_url_id = schema.livestream_b_url_id
-  
-  livestream_a_should_start_new_task = False
-  livestream_b_should_start_new_task = False
-  
-  task_predicts_list = []
-  
-  livestream_a = await livestream_repository.get_by_livestream_url_id(livestream_a_url_id)
-  livestream_b = await livestream_repository.get_by_livestream_url_id(livestream_b_url_id)
-  
-  response_data = None
-  response_status = None
-  
-  if not livestream_a:
-    livestream_a = await create_livestream_from_api(livestream_repository, channel_repository, livestream_a_url_id)
-    livestream_a_should_start_new_task = True
-  if not livestream_b:
-    livestream_b = await create_livestream_from_api(livestream_repository, channel_repository, livestream_b_url_id)
-    livestream_b_should_start_new_task = True
+  try:
+    livestream_url_id = schema.livestream_url_id
+    livestream_should_start_new_task = False
+    task_runner = None
+    response_data = None
+    response_type = 'info'
+    response_message = None
     
-  if livestream_a and livestream_b:
-    if livestream_a.livestream_end_time and livestream_b.livestream_end_time:
-      raise HTTPException(400, detail='All Livestream has Finished')
-      return
-    if livestream_a.livestream_end_time or livestream_b.livestream_end_time:
-      raise HTTPException(400, detail='Some Livestream has Finished')
-      return
+    livestream = await livestream_repository.get_by_livestream_url_id(livestream_url_id)
     
-    schema = sc.DetectionTaskCreate(
-      livestream_a_id=livestream_a.id,
-      livestream_a_url_id=livestream_a_url_id,
-      livestream_b_id=livestream_b.id,
-      livestream_b_url_id=livestream_b_url_id,
-    )
-    
-    if livestream_a_should_start_new_task or livestream_b_should_start_new_task:
-      response_data = await detection_task_repository.create(schema=schema)
-      response_status = 'livestream-new'
-    else:
-      response_data = await detection_task_repository.get_by_livestream_urls(livestream_a_url_id, livestream_b_url_id)
-      response_status = 'livestream-started'
+    if not livestream:
+      livestream = await create_livestream_from_api(livestream_repository, channel_repository, livestream_url_id)
+      livestream_should_start_new_task = True
       
-    if livestream_a_should_start_new_task:
-      task_predicts_list.append(
-        task_predicts.s(livestream_a.livestream_livechat_id, livestream_a.id, livestream_a_url_id).set(task_id=f"task_predicts-{livestream_a_url_id}"),
-      )
-    if livestream_b_should_start_new_task:
-      task_predicts_list.append(
-        task_predicts.s(livestream_b.livestream_livechat_id, livestream_b.id, livestream_b_url_id).set(task_id=f"task_predicts-{livestream_b_url_id}"),
+    if livestream:
+      schema = sc.DetectionTaskCreate(
+        livestream_id=livestream.id,
+        livestream_url_id=livestream_url_id,
       )
       
-    if len(task_predicts_list) > 0:
-      group(*task_predicts_list).apply_async()
-    
-    response_final = response_data.__dict__
-    response_final['status'] = response_status
+      if livestream_should_start_new_task and not livestream.livestream_end_time:
+        response_data = await detection_task_repository.create(schema=schema)
+        response_type = 'success'
+        response_message = 'Berhasil memulai deteksi baru'
+      elif livestream.livestream_end_time:
+        response_data = await detection_task_repository.create(schema=schema)
+        response_type = 'warning'
+        response_message = 'Berhasil, tetapi sesi livestream ini sudah expired'
+      else:
+        response_data = await detection_task_repository.get_by_livestream_url(livestream_url_id)
+        response_type = 'success'
+        response_message = 'Berhasil mengikuti sesi deteksi yang sudah ada'
+        
+      if livestream_should_start_new_task:
+        task_runner = task_predicts.s(livestream.livestream_livechat_id, livestream.id, livestream_url_id).set(task_id=f"task_predicts-{livestream_url_id}")
+        
+      if task_runner:
+        task_runner.apply_async()
+      
+    response_final = response_data.__dict__ 
+    response_final['type'] = response_type
+    response_final['message'] = response_message
     return response_final
+  except CustomException as ce:
+    message = ce.details.get('detail', 'Upps server lagi ada kendala, deteksi tidak dapat dijalankan')
+    raise HTTPException(400, detail=message)
   
-  raise HTTPException(400, detail='Something went wrong, Detection task cannot be executed')
 
 @router.post('/end_detection', response_model=DetectionTask)
 async def end_detection(
@@ -133,13 +120,9 @@ async def get_chats_detected(
   
   if detection_task:
     detection_task = format_row_to_dict(detection_task)
-    chats_detected_a = await chat_repository.get_chats_by_livestream_id(livestream_id=detection_task['livestream_a_id'], predicted_as='HS')
-    chats_detected_b = await chat_repository.get_chats_by_livestream_id(livestream_id=detection_task['livestream_b_id'], predicted_as='HS')
+    chats_detected = await chat_repository.get_chats_by_livestream_id(livestream_id=detection_task['livestream_id'], predicted_as='HS')
     
-    res = {
-      'chats_detected_a': chats_detected_a,
-      'chats_detected_b': chats_detected_b,
-    }
+    res = chats_detected
     
   return res
 

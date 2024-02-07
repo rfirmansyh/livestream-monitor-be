@@ -4,11 +4,12 @@ from livestream_monitor_classifier import Classifier
 from pandas import DataFrame
 from app.database import get_session, get_session_raw, async_session
 from app.helpers import fetcher
+from app.utils.app_util import CustomException
 from app.socket import socket_manager
 from app.modules.livestreams.repository import LivestreamRepository
 from app.modules.chats.model import ChatYtData, ChatPytchatData
 from app.modules.chats.repository import ChatRepsository
-
+import pprint
 
 classifier = Classifier()
 
@@ -42,6 +43,9 @@ async def create_livestream_from_api(livestream_repository, channel_repository, 
   if fetch_livestream.status_code == 200 and fetch_livestream.json()['items']:
     yt_livestream_data = fetch_livestream.json()['items'][0]
     yt_channel_data = None
+    
+    if not 'liveStreamingDetails' in yt_livestream_data:
+      raise CustomException({ 'detail': 'id yang anda masukan bukan konten berupa livestream' })
     
     if yt_livestream_data['snippet']['channelId']:
       fetch_channel = fetcher.get_channel_detail(yt_livestream_data['snippet']['channelId'])

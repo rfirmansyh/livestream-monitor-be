@@ -8,7 +8,7 @@ from celery.app import control
 from celery.contrib.abortable import AbortableTask
 from app.database import async_session
 from app.generators.celery_generator import sync_task
-from app.socket import socket_manager
+from app.socket import socket_manager, format_emit_detection
 from app.helpers import fetcher
 from app.modules.chats.repository import ChatRepsository
 from app.modules.detection_tasks.repository import DetectionTaskRepository
@@ -26,74 +26,85 @@ async def task_predicts(
   livestream_url_id, 
 ):
   try:
-    started_time_detection = time.time()
-    started_time_tolerance = time.time()
-    stop_time_tolerance_seconds = 10
-    stop_time_detection_seconds = 3600 # force stop detection 
+    stop_time_tolerance_seconds = 10 # batas waktu tunggu livechat
+    stop_time_detection_seconds = 3600 # batas waktu deteksi dalam detik
     
     chat = pytchat.create(video_id=livestream_url_id)
     async with async_session() as session:
       chat_repository = ChatRepsository(session=session)
       detection_task_repository = DetectionTaskRepository(session=session)
       livestream_repository = LivestreamRepository(session=session)
-      time_constraints = 0.8
+      time_constraints = 0.8 # batas waktu eksekusi
+      current_detection_progress_seconds = time.time()
+      result = ''
       
+      async def handle_process(start_t, chats):
+        nonlocal current_detection_progress_seconds, chat_repository
+        
+        print(f"WAKTU DIGUNAKAN MENGAMBIL DATA [s]: {(time.time()-start_t):.5f}")
+        current_detection_progress_seconds = time.time()
+        process_chats_result = process_livechats(chats, livestream_id=livestream_id)
+        print(f"WAKTU DIGUNAKAN PROSES DATA [s]: {(time.time()-start_t):.5f}")
+        
+        if process_chats_result == 'error':
+          print('process_chats_result', process_chats_result)
+          return 'aborted'
+        
+        await socket_manager.emit(
+          f'livechat_detection_processed', 
+          jsonable_encoder(process_chats_result),
+          room=livestream_url_id
+        )
+        
+        try :
+          await chat_repository.bulk(process_chats_result)
+          print(f"WAKTU DIGUNAKAN MENYIMPAN DATA [s]: {(time.time()-start_t):.5f}")
+        except:
+          await socket_manager.emit(
+            f'get_livechat_data_predicted_saved_error-{livestream_url_id}', 
+            'error',
+            room=livestream_url_id
+          )
+          
+        print(f"WAKTU DIGUNAKAN KESELURUHAN [s]: {(time.time()-start_t):.5f}")
+        print('='*30)
+        return 'completed'
+        
       async def handle_end(message='aborted'):
         await socket_manager.emit(
-          f'livestream-ended', 
-          'ended-expired',
+          'livechat_detection_status', 
+          format_emit_detection('error', message),
           room=livestream_url_id
         )
         try:
           await detection_task_repository.set_end_by_related_livestream_url_id(livestream_url_id)
           await livestream_repository.update_livestream_end_time(livestream_url_id)
-          return message
+          return 'aborted'
         except Exception as ex:
-          return 'aborted-with-failed-flow' # not saved end time
-      
+          return 'aborted'
+        
       while chat.is_alive():
-        started_time_tolerance = time.time() # task dimulai
-        total_time_tolerance_seconds = time.time() - started_time_tolerance
-        total_time_detection_seconds = time.time() - started_time_detection
+        if result == 'aborted':
+          break
         
         start_t = time.time()
+        
         chats = json.loads(chat.get().json()) 
+        elapsed_detection_time = time.time() - current_detection_progress_seconds
         
-        if total_time_detection_seconds > stop_time_detection_seconds:
-          return await handle_end(f'aborted_maxium_detection_time')
-          break
-        if total_time_tolerance_seconds > stop_time_tolerance_seconds and len(chats) < 1:
-          return await handle_end(f'aborted_no_response_from_livechat_after_{stop_time_tolerance_seconds}s')
-          break
-        
-        if len(chats) > 0:
-          process_chats_result = process_livechats(chats, livestream_id=livestream_id)
-          if process_chats_result == 'error':
-            break
+        if elapsed_detection_time > stop_time_detection_seconds:
+          result = await handle_end('Deteksi dihentikan karena sudah mencapai batas waktu')
+        elif elapsed_detection_time > stop_time_tolerance_seconds and len(chats) < 1:
+          result = await handle_end(f'Deteksi dihentikan karena server tidak dapat mendapatkan data chat dalam rentan waktu {stop_time_tolerance_seconds}s')
+        elif len(chats) > 0:
+          result = await asyncio.wait_for(handle_process(start_t, chats), timeout=time_constraints)
           
-          await socket_manager.emit(
-            f'get_livechat_data_predicted-{livestream_url_id}', 
-            jsonable_encoder(process_chats_result),
-            room=livestream_url_id
-          )
-          
-          try :
-            await asyncio.wait_for(chat_repository.bulk(process_chats_result), timeout=time_constraints)
-          except:
-            await socket_manager.emit(
-              f'get_livechat_data_predicted_saved_error-{livestream_url_id}', 
-              'error',
-              room=livestream_url_id
-            )
-            
-        end_t = time.time() # task selesai
-        print(f"USED TIME [s]: {(end_t-start_t):.5f}")
-        
-      await socket_manager.emit(
-        f'status_livestream-{livestream_url_id}', 
-        'offline',
-        room=livestream_url_id
-      )
+      if result != 'aborted':
+        await socket_manager.emit(
+          'livechat_detection_status', 
+          format_emit_detection('info', 'Proses deteksi sudah selesai'),
+          room=livestream_url_id
+        )
       return 'finished'
     
   except Exception as ex:
@@ -105,4 +116,6 @@ async def task_predicts(
       room=livestream_url_id
     )
     return 'ended_task_detection'
+  
+  
   

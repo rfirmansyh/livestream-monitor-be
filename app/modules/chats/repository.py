@@ -57,6 +57,38 @@ class ChatRepsository:
     
     return res
 
+  async def get_users_chat_detected(self):
+    query = text(f"""
+      SELECT
+        author_channel_id,
+        author_display_name,
+        author_image_url,
+        COUNT(*) AS total_chats
+      FROM
+        chats
+      WHERE
+        predicted_as = 'HS'
+      GROUP BY
+        author_channel_id, author_display_name, author_image_url;
+    """)
+    
+    res = await self.session.execute(query)
+    res = res.all()
+    
+    return res
+
+  async def get_chats_detected_by_channel_id(self, channel_id):
+    query = text(f"""
+      SELECT * FROM chats
+      WHERE
+        author_channel_id = '{channel_id}' AND predicted_as = 'HS'
+    """)
+    
+    res = await self.session.execute(query)
+    res = res.all()
+    
+    return res
+
   async def bulk(self, schemas: List[dict]):
     chats: List[dict] = schemas
 
@@ -64,3 +96,5 @@ class ChatRepsository:
     res = await self.session.execute(stmt)
     await self.session.commit()
     return res
+
+

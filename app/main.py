@@ -1,3 +1,4 @@
+# FILE PADA app.main atau app/main.py
 import time
 from fastapi import FastAPI
 from fastapi_pagination import add_pagination
@@ -11,8 +12,8 @@ from app.utils.celery_util import create_celery
 def init_app() -> FastAPI:
   
   app = FastAPI(
-    title='Livestream Monitor API',
-    description='Client Api of Livestream Monitor FE',
+    title='Aplikasi Deteksi Ujaran Kebencian API',
+    description='API Service untuk Aplikasi Deteksi Ujaran Kebencian API',
     version='1',
   )
 
@@ -34,7 +35,7 @@ def init_app() -> FastAPI:
   async def add_process_time_header(request, call_next):
     start_time = time.time()
     response = await call_next(request)
-    print("Time took to process the request and return response is {} sec".format(time.time() - start_time))
     return response
 
   return app
+

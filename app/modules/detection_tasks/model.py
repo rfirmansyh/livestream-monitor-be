@@ -8,10 +8,8 @@ from app.modules.livestreams.model import Livestream
 
 
 class DetectionTaskBase(SQLModel):
-  livestream_a_id: Optional[int] = Field(default=None, foreign_key='livestreams.id')
-  livestream_a_url_id: Optional[str]
-  livestream_b_id: Optional[int] = Field(default=None, foreign_key='livestreams.id')
-  livestream_b_url_id: Optional[str]
+  livestream_id: Optional[int] = Field(default=None, foreign_key='livestreams.id')
+  livestream_url_id: Optional[str]
   created_at: Optional[datetime]
   ended_at: Optional[datetime]
   
@@ -25,23 +23,16 @@ class DetectionTask(DetectionTaskBase, table=True):
     nullable=False,
   )
   created_at: Optional[datetime] = Field(sa_column=sa.Column(sa.DateTime, default=sa.func.now()))
-  livestream_a: Optional[Livestream] = Relationship(
+  livestream: Optional[Livestream] = Relationship(
     sa_relationship_kwargs={
-      "primaryjoin": "DetectionTask.livestream_a_id==Livestream.id", 
+      "primaryjoin": "DetectionTask.livestream_id==Livestream.id", 
       "lazy": "joined",
-    }
-  )
-  livestream_b: Optional[Livestream] = Relationship(
-    sa_relationship_kwargs={
-      "primaryjoin": "DetectionTask.livestream_b_id==Livestream.id", 
-      "lazy": "joined"
     }
   )
   
 class DetectionTaskComparisonData:
   def __init__(self, raw_data):
-    self.livestream_a = self._parse_livestream_data('livestream_a', raw_data)
-    self.livestream_b = self._parse_livestream_data('livestream_b', raw_data)
+    self.livestream = self._parse_livestream_data('livestream', raw_data)
     self.current_detection_chats_total_hs = raw_data['current_detection_chats_total_hs']
     self.current_detection_chats_total_nhs = raw_data['current_detection_chats_total_nhs']
   

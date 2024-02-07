@@ -21,19 +21,15 @@ def upgrade() -> None:
     'detection_tasks',
     sa.Column('id', sa.String(255), primary_key=True),
     # task_id from celery
-    sa.Column('livestream_a_id', sa.Integer),
-    sa.Column('livestream_a_url_id', sa.String(255)),
-    sa.Column('livestream_b_id', sa.Integer),
-    sa.Column('livestream_b_url_id', sa.String(255)),
+    sa.Column('livestream_id', sa.Integer),
+    sa.Column('livestream_url_id', sa.String(255)),
     sa.Column('created_at', sa.DateTime, default=sa.func.now()),
     sa.Column('ended_at', sa.DateTime, nullable=True),
     
-    sa.ForeignKeyConstraint(['livestream_a_id'], ['livestreams.id'], 'fk_detection_tasks_livestream_a'),
-    sa.ForeignKeyConstraint(['livestream_b_id'], ['livestreams.id'], 'fk_detection_tasks_livestream_b')
+    sa.ForeignKeyConstraint(['livestream_id'], ['livestreams.id'], 'fk_detection_tasks_livestream'),
   )
 
 
 def downgrade() -> None:
-  op.drop_constraint('fk_detection_tasks_livestream_a', 'detection_tasks', type_='foreignkey')
-  op.drop_constraint('fk_detection_tasks_livestream_b', 'detection_tasks', type_='foreignkey')
+  op.drop_constraint('fk_detection_tasks_livestream', 'detection_tasks', type_='foreignkey')
   op.drop_table('detection_tasks')
